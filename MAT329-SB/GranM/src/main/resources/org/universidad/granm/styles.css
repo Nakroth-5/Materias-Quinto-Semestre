@@ -1,0 +1,48 @@
+/* styles.css */
+
+.button {
+    -fx-background-color: #60bfff;   /* azul */
+    -fx-text-fill: white;             /* texto blanco */
+    -fx-font-weight: bold;
+    -fx-padding: 8 15 8 15;
+    -fx-background-radius: 5;
+}
+
+.button-limpiar {
+    -fx-background-color: #2ee312;   /* verde */
+    -fx-text-fill: white;             /* texto blanco */
+    -fx-font-weight: bold;
+    -fx-padding: 8 15 8 15;
+    -fx-background-radius: 5;
+}
+
+.button:hover {
+    -fx-background-color: #2980b9;   /* azul más oscuro al pasar mouse */
+}
+
+.button-limpiar:hover {
+    -fx-background-color: #2f8c21;
+}
+
+.context-menu {
+    -fx-background-color: #029cfb;   /* fondo oscuro */
+    -fx-border-color: #34495e;        /* borde */
+}
+
+.menu-item {
+    -fx-text-fill: white;             /* texto blanco */
+    -fx-font-size: 14px;
+    -fx-padding: 5 10 5 10;
+}
+
+.menu-item:hover {
+    -fx-background-color: #2980b9;   /* fondo azul al pasar mouse */
+}
+
+.panel-redondeado {
+    -fx-background-color: #f0f0f0;
+    -fx-border-color: #888;
+    -fx-border-radius: 15;
+    -fx-background-radius: 15;
+    -fx-padding: 10;
+}
