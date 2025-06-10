@@ -7,11 +7,8 @@ import javafx.scene.Node;
 import javafx.geometry.Side;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.layout.HBox;
+import org.universidad.granm.metodos.MGranM;
 import org.universidad.granm.metodos.MSimplex;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.RowConstraints;
-import javafx.scene.layout.Priority;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +34,15 @@ public class GranMController {
      * Array que almacena los términos independientes de las restricciones.
      */
     private double[] terminosIndependientes;
+
+
+    private String[] tipoRestriccion;
+
+    private ComboBox<String> comboOperador;
+    private List<ComboBox<String>> operadoresRestricciones = new ArrayList<>();
+
+    private ComboBox<String> comboTipoOperacion;
+
 
     /**
      * Menú contextual para las opciones de la aplicación.
@@ -73,10 +79,6 @@ public class GranMController {
      */
     @FXML private VBox containerRestricciones;
 
-    /**
-     * Contenedor para mostrar la solución del problema.
-     */
-    @FXML private VBox containerSolucion;
 
     /**
      * ScrollPane para las restricciones.
@@ -128,7 +130,7 @@ public class GranMController {
     /**
      * Maneja el evento del botón de menú.
      * Muestra u oculta el menú contextual.
-     * 
+     *
      * @param event Evento de acción que desencadenó este método
      */
     @FXML
@@ -160,16 +162,16 @@ public class GranMController {
     /**
      * Limpia todos los contenedores y listas de la interfaz.
      * Útil para reiniciar el formulario o prepararlo para un nuevo problema.
-     * 
+     *
      * @param actionEvent Evento de acción que desencadenó este método
      */
     public void limpiar(ActionEvent actionEvent) {
-        // Limpiar contenedores visuales
-        containerFuncionObjetivo.getChildren().clear();
-        containerRestricciones.getChildren().clear();
-        containerSolucion.getChildren().clear();
-
-        // Limpiar listas de campos
+        if (containerFuncionObjetivo != null) {
+            containerFuncionObjetivo.getChildren().clear();
+        }
+        if (containerRestricciones != null) {
+            containerRestricciones.getChildren().clear();
+        }
         camposFuncionObjetivo.clear();
         camposRestricciones.clear();
         camposTerminosIndependientes.clear();
@@ -178,7 +180,7 @@ public class GranMController {
     /**
      * Genera la interfaz para introducir los datos del modelo de programación lineal.
      * Crea campos para la función objetivo y las restricciones según los valores de los spinners.
-     * 
+     *
      * @param actionEvent Evento de acción que desencadenó este método
      */
     @FXML
@@ -199,6 +201,12 @@ public class GranMController {
         Label lblTituloFuncion = new Label("Función Objetivo (coeficientes):");
         gridFuncion.add(lblTituloFuncion, 0, 0, numVariables, 1);
         //              objeto, fila, columna, cantColumnas a ocupar, cantFilas a ocupar
+
+        comboTipoOperacion = new ComboBox<>();
+        comboTipoOperacion.getItems().addAll("Minimizar", "Maximizar");
+        comboTipoOperacion.setValue("Minimizar");
+
+        gridFuncion.add(comboTipoOperacion, numVariables, 2);
 
         // Crear campos para cada variable en la función objetivo
         for (int i = 0; i < numVariables; i++) {
@@ -238,10 +246,11 @@ public class GranMController {
             }
 
             // Selector de operador para la restricción (<=, =, >=)
-            ComboBox<String> comboOperador = new ComboBox<>();
-            comboOperador.getItems().addAll("<="); //proximamente, "=", ">="
-            comboOperador.setValue("<=");
+            comboOperador = new ComboBox<>();
+            comboOperador.getItems().addAll("\u2264", "=", "\u2265");
+            comboOperador.setValue("\u2264");
             gridRestriccion.add(comboOperador, numVariables, 2);
+            operadoresRestricciones.add(comboOperador);
 
             // Campo para el término independiente de la restricción
             TextField txtTerminoIndependiente = new TextField();
@@ -254,6 +263,21 @@ public class GranMController {
             containerRestricciones.getChildren().add(gridRestriccion);
         }
 
+        // Después de crear las restricciones principales y antes del botón de resolver
+        GridPane gridNoNegatividad = new GridPane();
+        gridNoNegatividad.setHgap(10);
+        gridNoNegatividad.setVgap(5);
+        gridNoNegatividad.setStyle("-fx-padding: 10; -fx-background-color: #f0f0f0;");
+
+        Label lblTituloNoNeg = new Label("Restricciones de no negatividad:");
+        gridNoNegatividad.add(lblTituloNoNeg, 0, 0, numVariables, 1);
+
+        for (int i = 0; i < numVariables; i++) {
+            Label lblRestriccion = new Label("X" + (i + 1) + " \u2265 0"); //\u2264: >=
+            gridNoNegatividad.add(lblRestriccion, i, 1);
+        }
+
+        containerRestricciones.getChildren().add(gridNoNegatividad);
         // Botón para resolver el problema
         Button btnResolver = new Button("Resolver Problema");
         btnResolver.setOnAction(this::resolverProblema);
@@ -265,7 +289,7 @@ public class GranMController {
      * Resuelve el problema de programación lineal con los datos introducidos.
      * Captura los valores de la función objetivo y las restricciones, crea una instancia
      * de MSimplex y muestra los resultados en una ventana separada.
-     * 
+     *
      * @param event Evento de acción que desencadenó este método
      */
     @FXML
@@ -283,24 +307,36 @@ public class GranMController {
             // Capturar coeficientes de las restricciones y términos independientes
             restricciones = new double[numRestricciones][numVariables];
             terminosIndependientes = new double[numRestricciones];
+            tipoRestriccion = new String[numRestricciones];
+            boolean todasRestriccionesSonMenorIgual = true;
 
             for (int r = 0; r < numRestricciones; r++) {
                 for (int v = 0; v < numVariables; v++) {
                     restricciones[r][v] = Double.parseDouble(camposRestricciones.get(r).get(v).getText());
                 }
                 terminosIndependientes[r] = Double.parseDouble(camposTerminosIndependientes.get(r).getText());
+                tipoRestriccion[r] = operadoresRestricciones.get(r).getValue();
+                if (!tipoRestriccion[r].equals("\u2264"))
+                    todasRestriccionesSonMenorIgual = false;
             }
 
             // Crear instancia del resolvedor y ejecutar el método Simplex
-            simplex = new MSimplex(funcionObjetivo, restricciones, terminosIndependientes);
+            boolean maximizar = true;
+            if (todasRestriccionesSonMenorIgual && !maximizar)
+                simplex = new MSimplex(funcionObjetivo, restricciones, terminosIndependientes);
+            else {
+                if (comboTipoOperacion.getValue().equals("Maximizar"))
+                    maximizar = true;
+                else
+                    maximizar = false;
+                simplex = new MGranM(funcionObjetivo, restricciones, terminosIndependientes, tipoRestriccion, maximizar);
+            }
             simplex.resolverMSimplex();
 
             // Mostrar ventana con el proceso completo del método Simplex
             MatrizWindow window = new MatrizWindow(simplex);
             window.mostrar();
-
-            // Limpiar el contenedor de solución en la ventana principal
-            containerSolucion.getChildren().clear();
+            
 
         } catch (NumberFormatException e) {
             // Capturar errores de formato en los campos numéricos
@@ -313,7 +349,7 @@ public class GranMController {
 
     /**
      * Muestra una alerta de error con el título y mensaje especificados.
-     * 
+     *
      * @param titulo Título de la ventana de alerta
      * @param mensaje Mensaje a mostrar en la alerta
      */

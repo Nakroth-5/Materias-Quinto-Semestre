@@ -167,18 +167,18 @@ public class MatrizWindow {
         int numRest = simplex.getNroRestricciones();
 
         // Agregar encabezados para las variables de decisión (x1, x2, ...)
-        for (int j = 1; j <= numVars; j++) {
-            Label lbl = new Label("x" + (j));
+        for (int j = 1; j < simplex.getNroColumnas() - 1; j++) {
+            Label lbl = new Label("X" + (j));
             lbl.setStyle("-fx-font-weight: bold;");
             gridPane.add(lbl, j + 1, 2);
         }
 
-        // Agregar encabezados para las variables de holgura (s1, s2, ...)
-        for (int j = 1; j <= numRest; j++) {
-            Label lbl = new Label("s" + j);
-            lbl.setStyle("-fx-font-weight: bold;");
-            gridPane.add(lbl, numVars + j + 1, 2);
-        }
+//        // Agregar encabezados para las variables de holgura (s1, s2, ...)
+//        for (int j = numVars; j < simplex.getNroColumnas() - 1; j++) {
+//            Label lbl = new Label("X" + j);
+//            lbl.setStyle("-fx-font-weight: bold;");
+//            gridPane.add(lbl, numVars + j + 1, 2);
+//        }
 
         // Agregar encabezado para la función objetivo (Z)
         Label lblZ = new Label("Z");
@@ -188,12 +188,12 @@ public class MatrizWindow {
         // Agregar encabezado para los términos independientes (RHS - Right Hand Side)
         Label lblTI = new Label("RHS");
         lblTI.setStyle("-fx-font-weight: bold;");
-        gridPane.add(lblTI, numVars + numRest + 2, 2);
+        gridPane.add(lblTI, simplex.getNroColumnas(), 2);
 
         // Mostrar los valores de la tabla Simplex
         for (int i = 0; i < tabla.length; i++) {
             // Etiqueta para identificar cada fila
-            Label lblFila = new Label(i == 0 ? "Z" : "s" + i);
+            Label lblFila = new Label(i == 0 ? "Z" : "X" + i);
             lblFila.setStyle("-fx-font-weight: bold;");
             gridPane.add(lblFila, 0, i + 3);
 

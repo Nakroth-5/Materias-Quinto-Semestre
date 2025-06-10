@@ -2,8 +2,12 @@ package org.universidad.granm.metodos;
 
 import org.xml.sax.SAXNotRecognizedException;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.universidad.granm.metodos.MGranM.indexParaNuevoZ;
 
 /**
  * Clase para resolver problemas de programación lineal utilizando el método Simplex.
@@ -16,29 +20,29 @@ public class MSimplex {
      * problemas de programación lineal, incluyendo la función objetivo, restricciones,
      * y variables de holgura.
      */
-    private double M[][];
+    protected double M[][];
 
     /**
      * Número de filas en la matriz tableau.
      * Es igual a 1 (para la función objetivo) más el número de restricciones.
      */
-    private int nroFilas;
+    protected int nroFilas;
 
     /**
      * Número de columnas en la matriz tableau.
      * Es igual a 1 (columna de identidad) + variables originales + variables de holgura + término independiente.
      */
-    private int nroColumnas;
+    protected int nroColumnas;
 
     /**
      * Número de variables de decisión en el problema original.
      */
-    private int nroVariables;
+    protected int nroVariables;
 
     /**
      * Número de restricciones en el problema original.
      */
-    private int nroRestricciones;
+    protected int nroRestricciones;
 
     /**
      * Mapa que almacena la solución óptima del problema.
@@ -51,13 +55,17 @@ public class MSimplex {
      * Mapa que relaciona los índices de las variables con las filas donde aparecen en la base.
      * Se utiliza para reconstruir la solución óptima a partir del tableau final.
      */
-    private Map<Integer, Integer> indiceSolucion;
+    protected Map<Integer, Integer> indiceSolucion;
 
     /**
      * Objeto que almacena el historial de pasos realizados durante la ejecución del algoritmo Simplex.
      * Permite visualizar el proceso paso a paso y entender cómo se llegó a la solución óptima.
      */
-    private GuardarPasos historialDePasos;
+    protected GuardarPasos historialDePasos;
+
+    protected boolean esGranM;
+
+    private static final int ESCALA_CALCULOS = 20;
 
 
     /**
@@ -68,6 +76,7 @@ public class MSimplex {
      * @param terminosIndependientes Términos independientes de las restricciones (lado derecho de las desigualdades)
      */
     public MSimplex(double[] funcionObjetivo, double[][] restricciones, double[] terminosIndependientes) {
+        this.esGranM = false;
         this.nroRestricciones = restricciones.length;
         this.nroVariables = funcionObjetivo.length;
 
@@ -125,6 +134,9 @@ public class MSimplex {
         guardarPaso("Tabla inicial", "", "");
     }
 
+    public MSimplex() {
+    }
+
     /**
      * Guarda un paso en el historial del proceso Simplex, registrando la descripción
      * del paso y las variables involucradas.
@@ -133,7 +145,7 @@ public class MSimplex {
      * @param variableEntrada Variable que entra a la base en este paso.
      * @param variableSalida  Variable que sale de la base en este paso.
      */
-    private void guardarPaso(String descripcion, String variableEntrada, String variableSalida) {
+    protected void guardarPaso(String descripcion, String variableEntrada, String variableSalida) {
         historialDePasos.agregarPaso(M, variableEntrada, variableSalida, descripcion);
     }
 
@@ -258,21 +270,29 @@ public class MSimplex {
     public void resolverMSimplex() {
         int columnaPivote = obtenerColumnaPivote();
         int filaPivote = obtenerFilaPivote(columnaPivote);
+
+        // Verificar si el problema es no acotado (no hay elementos positivos en la columna pivote)
+        if (filaPivote == 0) {
+            guardarPaso("Problema no acotado", "", "");
+            return;
+        }
+
         double valorPivote = getValor(filaPivote, columnaPivote);
 
-        guardarPaso(" ", "Variable de entrada X" + filaPivote, "Variable Salida X" + columnaPivote);
         normalizarFilaPivote(filaPivote, valorPivote);
+        guardarPaso("Normalizacion de la fila pivote", "Variable de entrada X" + columnaPivote, "Variable Salida X" + filaPivote);
 
         for (int i = 0; i < nroFilas; i++) {
             if (i == filaPivote) continue;
-            double factorMultiplicativo = getValor(i, columnaPivote) * -1;
-
+            double factor = -getValor(i, columnaPivote);
             for (int j = 0; j < nroColumnas; j++)
-                setValor(i, j, getValor(i, j) + getValor(filaPivote, j) * factorMultiplicativo);
+                setValor(i, j, getValor(i, j) + factor * getValor(filaPivote, j));
         }
 
         solucion.put("x" + columnaPivote, 0.0);
         indiceSolucion.put(columnaPivote, filaPivote);
+
+        guardarPaso("Eliminar la columna pivote", "Variable de entrada X" + columnaPivote, "Variable Salida X" + filaPivote);
 
         if (existenNegativosEnlaFuncionObjetivo())
             resolverMSimplex();
@@ -291,10 +311,36 @@ public class MSimplex {
      *
      * @return true si existen coeficientes negativos en la función objetivo, false en caso contrario
      */
-    private boolean existenNegativosEnlaFuncionObjetivo() {
-        for (int j = 1; j < nroVariables; j++)
+    protected boolean existenNegativosEnlaFuncionObjetivo() {
+        for (int j = 1; j < nroColumnas - 1; j++) {
             if (getValor(0, j) < 0)
                 return true;
+        }
+        return false;
+    }
+
+    /**
+     * Verifica si hay variables artificiales en la base de la solución óptima.
+     * Si hay variables artificiales con valores positivos en la base, el problema es infactible.
+     * NOTA: Este método solo debe usarse en MGranM después de completar el algoritmo Simplex.
+     *
+     * @return true si hay variables artificiales en la base, false en caso contrario
+     */
+    protected boolean hayVariablesArtificialesEnBase() {
+        if (!esGranM || indexParaNuevoZ == null) {
+            return false;
+        }
+
+        for (Map.Entry<Integer, Integer> entry : indiceSolucion.entrySet()) {
+            int columna = entry.getKey();
+            // Verificar si la columna corresponde a una variable artificial
+            if (indexParaNuevoZ.containsValue(columna)) {
+                double valor = getValor(entry.getValue(), nroColumnas - 1);
+                if (Math.abs(valor) > 1e-10) {  // Tolerancia para errores de punto flotante
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -305,7 +351,7 @@ public class MSimplex {
      * @param filaPivote  Índice de la fila que contiene el elemento pivote
      * @param valorPivote Valor del elemento pivote
      */
-    private void normalizarFilaPivote(int filaPivote, double valorPivote) {
+    protected void normalizarFilaPivote(int filaPivote, double valorPivote) {
         double inversoMultiplicativo = 1 / valorPivote;
         for (int j = 0; j < nroColumnas; j++)
             setValor(filaPivote, j, getValor(filaPivote, j) * inversoMultiplicativo);
@@ -317,11 +363,11 @@ public class MSimplex {
      *
      * @return Índice de la columna pivote
      */
-    private int obtenerColumnaPivote() {
+    protected int obtenerColumnaPivote() {
         double maxNegativo = getValor(0, 1);
         int columnaPivote = 1;
 
-        for (int i = 2; i < nroVariables; i++)
+        for (int i = 2; i < nroColumnas - 1; i++)
             if (getValor(0, i) < maxNegativo) {
                 maxNegativo = getValor(0, i);
                 columnaPivote = i;
@@ -335,9 +381,9 @@ public class MSimplex {
      * La fila pivote se selecciona utilizando la regla del cociente mínimo (o regla de la razón mínima).
      *
      * @param columnaPivote Índice de la columna pivote previamente determinada
-     * @return Índice de la fila pivote
+     * @return Índice de la fila pivote, o 0 si el problema es no acotado
      */
-    private int obtenerFilaPivote(int columnaPivote) {
+    protected int obtenerFilaPivote(int columnaPivote) {
         double minimoActual = Double.POSITIVE_INFINITY;
         int filaPivote = 0;
 
@@ -350,10 +396,8 @@ public class MSimplex {
                 filaPivote = i;
             }
         }
-
         return filaPivote;
     }
-
 
     /**
      * Obtiene la matriz completa del tableau Simplex.
@@ -426,7 +470,6 @@ public class MSimplex {
     public void setNroVariables(int nroVariables) {
         this.nroVariables = nroVariables;
     }
-
 
     /**
      * Obtiene el valor de la función objetivo en la solución óptima
