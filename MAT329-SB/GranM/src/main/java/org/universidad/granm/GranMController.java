@@ -321,14 +321,14 @@ public class GranMController {
             }
 
             // Crear instancia del resolvedor y ejecutar el método Simplex
-            boolean maximizar = true;
+            boolean maximizar;
+            if (comboTipoOperacion.getValue().equals("Maximizar"))
+                maximizar = true;
+            else
+                maximizar = false;
             if (todasRestriccionesSonMenorIgual && !maximizar)
                 simplex = new MSimplex(funcionObjetivo, restricciones, terminosIndependientes);
             else {
-                if (comboTipoOperacion.getValue().equals("Maximizar"))
-                    maximizar = true;
-                else
-                    maximizar = false;
                 simplex = new MGranM(funcionObjetivo, restricciones, terminosIndependientes, tipoRestriccion, maximizar);
             }
             simplex.resolverMSimplex();
