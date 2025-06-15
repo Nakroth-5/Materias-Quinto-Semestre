@@ -319,6 +319,14 @@ public abstract class SimplexBase {
         return bd.doubleValue();
     }
 
+    protected void mostrarEstadoVariables() {
+        System.out.println("=== Estado de Variables ===");
+        for (VariableInfo var : variables) {
+            System.out.println(var.toString());
+        }
+        System.out.println("===========================");
+    }
+
     // Getters y Setters
     public double[][] getM() { return M; }
     public void setM(double[][] m) { M = m; }

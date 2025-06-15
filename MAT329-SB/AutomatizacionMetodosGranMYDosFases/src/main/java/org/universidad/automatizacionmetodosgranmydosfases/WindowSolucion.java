@@ -29,6 +29,7 @@ public class WindowSolucion {
     private Button btnSiguiente;
     private GridPane gridPaneSolucion;
     private int pasoActual;
+    private int fila;
 
     public WindowSolucion(SimplexBase simplex) {
         this.simplex = simplex;
@@ -241,28 +242,11 @@ public class WindowSolucion {
         titulo.getStyleClass().add("title-label");
         gridPaneSolucion.add(titulo, 0, 0, 3, 1);
 
-        int fila = 1;
+        fila = 1;
 
         // Mostrar variables originales
         List<VariableInfo> variablesOriginales = simplex.obtenerVariablesPorTipo(VariableInfo.TipoVariable.ORIGINAL);
-        if (!variablesOriginales.isEmpty()) {
-            Label subtituloOriginales = new Label("Variables de Decisión:");
-            subtituloOriginales.getStyleClass().add("subtitle-label");
-            gridPaneSolucion.add(subtituloOriginales, 0, fila++, 3, 1);
-
-            for (VariableInfo var : variablesOriginales) {
-                Double valor = simplex.solucion.get(var.getNombre());
-                Label txtVar = new Label(obtenerNombreVisualVariable(var) + ":");
-                Label txtValor = new Label(valor != null ? String.format("%.2f", valor) : "0.00");
-                Label txtTipo = new Label("(Original)");
-                txtTipo.getStyleClass().add("tipo-variable");
-
-                gridPaneSolucion.add(txtVar, 0, fila);
-                gridPaneSolucion.add(txtValor, 1, fila);
-                gridPaneSolucion.add(txtTipo, 2, fila);
-                fila++;
-            }
-        }
+        mostrarResultadoDeLasVariables(variablesOriginales, "Variables de Decisión:", "(Original)");
 
         // Mostrar variables de holgura en base (si tienen valor > 0)
         List<VariableInfo> variablesHolgura = simplex.obtenerVariablesPorTipo(VariableInfo.TipoVariable.HOLGURA);
@@ -270,23 +254,21 @@ public class WindowSolucion {
                 .filter(var -> var.isEstaEnBase() && Math.abs(var.getValor()) > SimplexBase.epsilon)
                 .toList();
 
-        if (!holguraEnBase.isEmpty()) {
-            Label subtituloHolgura = new Label("Variables de Holgura:");
-            subtituloHolgura.getStyleClass().add("subtitle-label");
-            gridPaneSolucion.add(subtituloHolgura, 0, fila++, 3, 1);
+        mostrarResultadoDeLasVariables(holguraEnBase, "Variables de Holgura:", "(Holgura)");
 
-            for (VariableInfo var : holguraEnBase) {
-                Label txtVar = new Label(obtenerNombreVisualVariable(var) + ":");
-                Label txtValor = new Label(String.format("%.2f", var.getValor()));
-                Label txtTipo = new Label("(Holgura)");
-                txtTipo.getStyleClass().add("tipo-variable");
+        // Mostrar variables de exceso en base (si tienen valor > 0)
+        List<VariableInfo> variablesExceso = simplex.obtenerVariablesPorTipo(VariableInfo.TipoVariable.EXCESO);
+        List<VariableInfo> excesoEnBase = variablesExceso.stream()
+                .filter(var -> var.isEstaEnBase() && Math.abs(var.getValor()) > SimplexBase.epsilon)
+                .toList();
+        mostrarResultadoDeLasVariables(excesoEnBase, "Variables de Exceso:", "(Exceso)");
 
-                gridPaneSolucion.add(txtVar, 0, fila);
-                gridPaneSolucion.add(txtValor, 1, fila);
-                gridPaneSolucion.add(txtTipo, 2, fila);
-                fila++;
-            }
-        }
+        // Mostrar variables artificiales en base (si tienen valor > 0)
+        List<VariableInfo> variablesArtificial = simplex.obtenerVariablesPorTipo(VariableInfo.TipoVariable.ARTIFICIAL);
+        List<VariableInfo> artificialEnBase = variablesArtificial.stream()
+                .filter(var -> var.isEstaEnBase() && Math.abs(var.getValor()) > SimplexBase.epsilon)
+                .toList();
+        mostrarResultadoDeLasVariables(artificialEnBase, "Variables Artificial:", "(Artificial)");
 
         // Mostrar valor de la función objetivo
         fila++; // Espacio
@@ -300,6 +282,28 @@ public class WindowSolucion {
         gridPaneSolucion.add(labelZ, 0, fila);
         gridPaneSolucion.add(labelValorZ, 1, fila);
         gridPaneSolucion.add(tipoProblema, 2, fila);
+    }
+
+    private void mostrarResultadoDeLasVariables(List<VariableInfo> variables, String subtitulo, String tipo) {
+        if (!variables.isEmpty()) {
+            Label subtituloOriginales = new Label(subtitulo);
+            subtituloOriginales.getStyleClass().add("subtitle-label");
+            gridPaneSolucion.add(subtituloOriginales, 0, fila++, 3, 1);
+
+            for (VariableInfo var : variables) {
+                double valor = var.getValor();
+
+                Label txtVar = new Label(obtenerNombreVisualVariable(var) + ":");
+                Label txtValor = new Label(String.format("%.2f", valor));
+                Label txtTipo = new Label(tipo);
+                txtTipo.getStyleClass().add("tipo-variable");
+
+                gridPaneSolucion.add(txtVar, 0, fila);
+                gridPaneSolucion.add(txtValor, 1, fila);
+                gridPaneSolucion.add(txtTipo, 2, fila);
+                fila++;
+            }
+        }
     }
 
     private void mostrarPasoAnterior() {

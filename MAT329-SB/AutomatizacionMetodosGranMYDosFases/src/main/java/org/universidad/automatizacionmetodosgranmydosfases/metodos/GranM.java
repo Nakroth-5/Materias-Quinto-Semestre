@@ -1,7 +1,7 @@
 package org.universidad.automatizacionmetodosgranmydosfases.metodos;
 
 public class GranM extends SimplexBase {
-    private static final double M_VALOR = 1000;
+    private static final double M_VALOR = 1E6;
 
     public GranM(double[] funcionObjetivo, double[][] restricciones,
                  double[] terminosIndependientes, char[] tipoRestricciones, boolean maximizar) {
@@ -154,16 +154,12 @@ public class GranM extends SimplexBase {
             soluciónOptima = false;
             guardarPaso("Solución no factible - variables artificiales con valor positivo", "", "");
         }
+
+        mostrarEstadoVariables();
     }
 
     // Métodos adicionales para debugging y análisis
-    public void mostrarEstadoVariables() {
-        System.out.println("=== Estado de Variables ===");
-        for (VariableInfo var : variables) {
-            System.out.println(var.toString());
-        }
-        System.out.println("===========================");
-    }
+
 
     public boolean tieneVariablesArtificialesActivas() {
         return variables.stream()

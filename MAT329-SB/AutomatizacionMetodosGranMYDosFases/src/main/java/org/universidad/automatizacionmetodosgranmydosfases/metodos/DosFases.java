@@ -266,7 +266,7 @@ public class DosFases extends SimplexBase {
     @Override
     protected void finalizarSolucion() {
         super.guardarPaso("Solución óptima encontrada", "", "");
-
+        actualizarValoresVariables();
         solucion.clear();
         maximizar = maximizarOriginal;
 
@@ -288,6 +288,7 @@ public class DosFases extends SimplexBase {
 
         double valorZ = getValor(0, nroColumnas - 1);
         solucion.put("z", maximizar ? valorZ : valorZ * (-1));
+        mostrarEstadoVariables();
     }
 
     @Override
