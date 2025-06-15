@@ -4,12 +4,16 @@ import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.universidad.granm.claseabstracta.SimplexBase;
 import org.universidad.granm.metodos.MSimplex;
+
+import static org.universidad.granm.metodos.MSimplex.*;
 
 /**
  * Clase que representa la ventana donde se muestra el proceso paso a paso del método Simplex
@@ -59,7 +63,7 @@ public class MatrizWindow {
     /**
      * Instancia del resolvedor del método Simplex que contiene los datos del problema.
      */
-    private MSimplex simplex;
+    private SimplexBase simplex;
 
     /**
      * Índice del paso actual que se está mostrando.
@@ -71,7 +75,7 @@ public class MatrizWindow {
      * 
      * @param simplex Instancia del resolvedor del método Simplex con los datos del problema
      */
-    public MatrizWindow(MSimplex simplex) {
+    public MatrizWindow(SimplexBase simplex) {
         this.simplex = simplex;
 
         // Inicializar la ventana
@@ -121,7 +125,8 @@ public class MatrizWindow {
      */
     public void mostrar() {
         mostrarPaso(pasoActual); // Mostrar el primer paso
-        mostrarSolucionFinal(); // Mostrar la solución óptima
+        if (simplex.isSolucionEncontrada())
+            mostrarSolucionFinal(); // Mostrar la solución óptima
         stage.show(); // Hacer visible la ventana
     }
 
@@ -199,7 +204,8 @@ public class MatrizWindow {
 
             // Mostrar cada valor de la tabla con formato de dos decimales
             for (int j = 0; j < tabla[i].length; j++) {
-                Label lblValor = new Label(String.format("%.2f", tabla[i][j]));
+                TextField lblValor = new TextField(String.format("%.2f", redondear(tabla[i][j], decimales, epsilon)));
+                lblValor.setEditable(false);
                 lblValor.setStyle("-fx-border-color: #ddd; -fx-border-width: 1; -fx-padding: 5;");
                 gridPane.add(lblValor, j + 1, i + 3);
             }

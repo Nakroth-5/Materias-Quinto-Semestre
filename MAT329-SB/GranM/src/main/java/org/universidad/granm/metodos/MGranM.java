@@ -44,6 +44,8 @@ public class MGranM extends MSimplex {
         this.nroRestricciones = restricciones.length;
         this.nroVariables = funcionObjetivo.length;
         this.maximizar = maximizar;
+        super.solucionEncontrada = true;
+
         int holguras = 0, excesos = 0, artificiales = 0;
 
         for (String tipo : tipoRestricciones) {
@@ -99,8 +101,6 @@ public class MGranM extends MSimplex {
                 case "\u2265":
                     setValor(i + 1, colExceso + idxExceso, -1);
                     setValor(i + 1, colArtificial + idxArtificial, 1);
-                    // Para minimización convertida a maximización, usamos +M
-                    // Para maximización original, también usamos +M
                     setValor(0, colArtificial + idxArtificial, M_valor);
                     indexParaNuevoZ.put(i + 1, colArtificial + idxArtificial);
                     idxExceso++;
@@ -108,8 +108,6 @@ public class MGranM extends MSimplex {
                     break;
                 case "=":
                     setValor(i + 1, colArtificial + idxArtificial, 1);
-                    // Para minimización convertida a maximización, usamos +M
-                    // Para maximización original, también usamos +M
                     setValor(0, colArtificial + idxArtificial, M_valor);
                     indexParaNuevoZ.put(i + 1, colArtificial + idxArtificial);
                     idxArtificial++;
@@ -120,7 +118,6 @@ public class MGranM extends MSimplex {
 
         // Actualizar Z con los términos de las variables artificiales
         actualizarZ();
-
         guardarPaso("Tabla inicial con Gran M", "", "");
     }
 
@@ -166,8 +163,6 @@ public class MGranM extends MSimplex {
      */
     @Override
     protected boolean existenNegativosEnlaFuncionObjetivo() {
-        // Para ambos casos (maximización y minimización convertida),
-        // buscamos coeficientes negativos para continuar
         for (int j = 1; j < nroColumnas - 1; j++) {
             if (getValor(0, j) < -1e-10) { // Usamos tolerancia para evitar problemas numéricos
                 return true;
@@ -176,5 +171,13 @@ public class MGranM extends MSimplex {
         return false;
     }
 
-
+    @Override
+    protected boolean existenPositivosEnlaFuncionObjetivo() {
+        for (int j = 1; j < nroColumnas - 1; j++) {
+            if (getValor(0, j) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

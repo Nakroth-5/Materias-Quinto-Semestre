@@ -1,7 +1,5 @@
 package org.universidad.granm.metodos;
 
-import org.xml.sax.SAXNotRecognizedException;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashMap;
@@ -65,8 +63,15 @@ public class MSimplex {
 
     protected boolean esGranM;
 
-    private static final int ESCALA_CALCULOS = 20;
+    /**
+     * Indica si el problema es de maximización (true) o minimización (false).
+     */
+    protected boolean maximizar;
 
+    public static double epsilon = 1e-10;
+    public static int decimales = 6;
+
+    public boolean solucionEncontrada;
 
     /**
      * Constructor para problemas de maximización con restricciones <=
@@ -75,60 +80,41 @@ public class MSimplex {
      * @param restricciones          Matriz de coeficientes de las restricciones (sin incluir términos independientes)
      * @param terminosIndependientes Términos independientes de las restricciones (lado derecho de las desigualdades)
      */
-    public MSimplex(double[] funcionObjetivo, double[][] restricciones, double[] terminosIndependientes) {
+    public MSimplex(double[] funcionObjetivo, double[][] restricciones, double[] terminosIndependientes, boolean maximizar) {
         this.esGranM = false;
+        this.maximizar = maximizar;
         this.nroRestricciones = restricciones.length;
         this.nroVariables = funcionObjetivo.length;
+        this.solucionEncontrada = true;
 
-        // Número de filas = 1 (función objetivo) + número de restricciones
         this.nroFilas = 1 + nroRestricciones;
-
-        // Número de columnas = 1 (columna de identidad) + variables originales + variables de holgura + término independiente
         this.nroColumnas = 1 + nroVariables + nroRestricciones + 1;
-
         this.M = new double[nroFilas][nroColumnas];
 
-        // Configurar la fila de la función objetivo (fila 0)
-        // La primera columna es para la identidad (siempre 1 en la fila 0)
         setValor(0, 0, 1);
 
-        // Coeficientes de la función objetivo (con signo cambiado para maximización)
         for (int j = 0; j < nroVariables; j++)
             setValor(0, j + 1, -funcionObjetivo[j]);
 
-        // Las variables de holgura tienen coeficiente 0 en la función objetivo
         for (int j = 0; j < nroRestricciones; j++)
             setValor(0, nroVariables + j + 1, 0);
 
-
-        // El término independiente de la función objetivo es 0
         setValor(0, nroColumnas - 1, 0);
 
-        // Configurar las filas de las restricciones
         for (int i = 0; i < nroRestricciones; i++) {
-            // La primera columna es para la identidad (siempre 0 en las filas de restricciones)
             setValor(i + 1, 0, 0);
 
-            // Coeficientes de las variables originales
             for (int j = 0; j < nroVariables; j++)
                 setValor(i + 1, j + 1, restricciones[i][j]);
 
-            // Variables de holgura (1 en la diagonal, 0 en el resto)
             for (int j = 0; j < nroRestricciones; j++)
                 setValor(i + 1, nroVariables + j + 1, (i == j) ? 1 : 0);
 
-            // Términos independientes
             setValor(i + 1, nroColumnas - 1, terminosIndependientes[i]);
         }
 
-        //Para almacenar la solución
         solucion = new HashMap<>();
         indiceSolucion = new HashMap<>();
-        for (int i = 0; i < nroVariables; i++) {
-            solucion.put("x" + (i + 1), 0.0);
-        }
-        solucion.put("z", 0.0);
-
         historialDePasos = new GuardarPasos();
 
         guardarPaso("Tabla inicial", "", "");
@@ -267,20 +253,37 @@ public class MSimplex {
      * Este método implementa el algoritmo Simplex para encontrar la solución óptima.
      * Se ejecuta recursivamente hasta que no haya coeficientes negativos en la función objetivo.
      */
+    public void resolverSimplexMinimizacion() {
+        if (!maximizar && !existenPositivosEnlaFuncionObjetivo()) {
+            guardarPaso("Solucion optima encontrada", "", "");
+            return;
+        }
+        resolverMSimplex();
+    }
     public void resolverMSimplex() {
         int columnaPivote = obtenerColumnaPivote();
+
+        if (columnaPivote == 0) {
+            guardarPaso("Problema no acotado c", "", "");
+            solucionEncontrada = false;
+            return;
+        }
+
         int filaPivote = obtenerFilaPivote(columnaPivote);
 
         // Verificar si el problema es no acotado (no hay elementos positivos en la columna pivote)
         if (filaPivote == 0) {
-            guardarPaso("Problema no acotado", "", "");
+            guardarPaso("Problema no acotado f", "", "");
+            solucionEncontrada = false;
             return;
         }
 
         double valorPivote = getValor(filaPivote, columnaPivote);
 
-        normalizarFilaPivote(filaPivote, valorPivote);
-        guardarPaso("Normalizacion de la fila pivote", "Variable de entrada X" + columnaPivote, "Variable Salida X" + filaPivote);
+        if (valorPivote != 1) {
+            normalizarFilaPivote(filaPivote, valorPivote);
+            guardarPaso("Normalizacion de la fila pivote", "Variable de entrada X" + columnaPivote, "Variable Salida X" + filaPivote);
+        }
 
         for (int i = 0; i < nroFilas; i++) {
             if (i == filaPivote) continue;
@@ -293,6 +296,11 @@ public class MSimplex {
         indiceSolucion.put(columnaPivote, filaPivote);
 
         guardarPaso("Eliminar la columna pivote", "Variable de entrada X" + columnaPivote, "Variable Salida X" + filaPivote);
+
+        if (!esGranM && !maximizar && existenPositivosEnlaFuncionObjetivo()) {
+            resolverMSimplex();
+            return;
+        }
 
         if (existenNegativosEnlaFuncionObjetivo())
             resolverMSimplex();
@@ -320,6 +328,20 @@ public class MSimplex {
     }
 
     /**
+     * Verifica si existen coeficientes positivos en la función objetivo.
+     * Este método es utilizado para determinar si el algoritmo Simplex debe continuar iterando.
+     *
+     * @return true si existen coeficientes positivos en la función objetivo, false en caso contrario
+     */
+    protected boolean existenPositivosEnlaFuncionObjetivo() {
+        for (int j = 1; j < nroColumnas - 1; j++) {
+            if (getValor(0, j) > 0)
+                return true;
+        }
+        return false;
+    }
+
+    /**
      * Verifica si hay variables artificiales en la base de la solución óptima.
      * Si hay variables artificiales con valores positivos en la base, el problema es infactible.
      * NOTA: Este método solo debe usarse en MGranM después de completar el algoritmo Simplex.
@@ -336,7 +358,7 @@ public class MSimplex {
             // Verificar si la columna corresponde a una variable artificial
             if (indexParaNuevoZ.containsValue(columna)) {
                 double valor = getValor(entry.getValue(), nroColumnas - 1);
-                if (Math.abs(valor) > 1e-10) {  // Tolerancia para errores de punto flotante
+                if (Math.abs(valor) > 0) {  // Tolerancia para errores de punto flotante
                     return true;
                 }
             }
@@ -364,12 +386,34 @@ public class MSimplex {
      * @return Índice de la columna pivote
      */
     protected int obtenerColumnaPivote() {
-        double maxNegativo = getValor(0, 1);
-        int columnaPivote = 1;
+        int columnaPivote;
+        if (!esGranM && !maximizar)
+            columnaPivote = obtenerColumnaPivoteMinimizar();
+        else
+            columnaPivote = obtenerColumnaPivoteMaximizar();
+        return columnaPivote;
+    }
 
-        for (int i = 2; i < nroColumnas - 1; i++)
+    protected int obtenerColumnaPivoteMaximizar() {
+        double maxNegativo = 0;
+        int columnaPivote = 0;
+
+        for (int i = 1; i < nroColumnas - 1; i++)
             if (getValor(0, i) < maxNegativo) {
                 maxNegativo = getValor(0, i);
+                columnaPivote = i;
+            }
+
+        return columnaPivote;
+    }
+
+    protected int obtenerColumnaPivoteMinimizar() {
+        double maxPositivo = 0;
+        int columnaPivote = 0;
+
+        for (int i = 1; i < nroColumnas - 1; i++)
+            if (getValor(0, i) > maxPositivo) {
+                maxPositivo = getValor(0, i);
                 columnaPivote = i;
             }
 
@@ -398,6 +442,24 @@ public class MSimplex {
         }
         return filaPivote;
     }
+
+    /**
+     * Redondea un valor a una cantidad específica de decimales, considerando un umbral epsilon.
+     *
+     * @param valor     Valor a redondear.
+     * @param decimales Número de decimales deseado.
+     * @param epsilon   Umbral bajo el cual se considera el valor como cero.
+     * @return Valor redondeado.
+     */
+    public static double redondear(double valor, int decimales, double epsilon) {
+        if (Math.abs(valor) < epsilon) {
+            return 0.0;
+        }
+        BigDecimal bd = BigDecimal.valueOf(valor);
+        bd = bd.setScale(decimales, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+
 
     /**
      * Obtiene la matriz completa del tableau Simplex.
@@ -496,5 +558,9 @@ public class MSimplex {
      */
     public void setNroRestricciones(int nroRestricciones) {
         this.nroRestricciones = nroRestricciones;
+    }
+
+    public boolean isSolucionEncontrada() {
+        return solucionEncontrada;
     }
 }

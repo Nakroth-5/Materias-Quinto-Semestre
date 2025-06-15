@@ -1,0 +1,23 @@
+#instalar mariadb arch
+sudo pacman -S mariadb
+
+#Inicializar la base de datos  por primera vez
+sudo mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
+
+# Iniciar el servicio MariaDB
+sudo systemctl start mariadb
+
+#Para que se inicie automáticamente con el sistema:
+sudo systemctl enable mariadb
+
+#Verifica que está corriendo con:
+sudo systemctl status mariadb
+
+#Configurar MySQL (MariaDB)
+sudo mysql_secure_installation
+
+#Probar la conexión
+mysql -u root -p
+
+
+

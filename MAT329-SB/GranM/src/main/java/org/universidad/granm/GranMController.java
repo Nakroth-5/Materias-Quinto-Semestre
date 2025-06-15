@@ -7,6 +7,11 @@ import javafx.scene.Node;
 import javafx.geometry.Side;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import org.universidad.granm.claseabstracta.MDosFasesRefactorizada;
+import org.universidad.granm.claseabstracta.MGranMRefactorizada;
+import org.universidad.granm.claseabstracta.MSimplexEstandar;
+import org.universidad.granm.claseabstracta.SimplexBase;
+import org.universidad.granm.metodos.DosFaces;
 import org.universidad.granm.metodos.MGranM;
 import org.universidad.granm.metodos.MSimplex;
 
@@ -19,6 +24,8 @@ import java.util.List;
  * y la interacción con el método Simplex.
  */
 public class GranMController {
+
+    public static boolean DOSFACES = false;
 
     /**
      * Array que almacena los coeficientes de la función objetivo.
@@ -43,6 +50,8 @@ public class GranMController {
 
     private ComboBox<String> comboTipoOperacion;
 
+    private ComboBox<String> comboMetodo;
+
 
     /**
      * Menú contextual para las opciones de la aplicación.
@@ -57,7 +66,7 @@ public class GranMController {
     /**
      * Instancia del resolvedor del método Simplex.
      */
-    private MSimplex simplex;
+    private SimplexBase simplex;
 
     /**
      * Spinner para seleccionar el número de variables del problema.
@@ -202,10 +211,15 @@ public class GranMController {
         gridFuncion.add(lblTituloFuncion, 0, 0, numVariables, 1);
         //              objeto, fila, columna, cantColumnas a ocupar, cantFilas a ocupar
 
+        comboMetodo = new ComboBox<>();
+        comboMetodo.getItems().addAll("Simplex", "GranM", "Dos Faces");
+        comboMetodo.setValue("Simplex");
+
         comboTipoOperacion = new ComboBox<>();
         comboTipoOperacion.getItems().addAll("Minimizar", "Maximizar");
         comboTipoOperacion.setValue("Minimizar");
 
+        gridFuncion.add(comboMetodo, numVariables, 1);
         gridFuncion.add(comboTipoOperacion, numVariables, 2);
 
         // Crear campos para cada variable en la función objetivo
@@ -326,17 +340,34 @@ public class GranMController {
                 maximizar = true;
             else
                 maximizar = false;
-            if (todasRestriccionesSonMenorIgual && !maximizar)
-                simplex = new MSimplex(funcionObjetivo, restricciones, terminosIndependientes);
-            else {
-                simplex = new MGranM(funcionObjetivo, restricciones, terminosIndependientes, tipoRestriccion, maximizar);
+
+            String metodo = comboMetodo.getValue();
+
+            if (metodo.equals("Simplex")) {
+                if (!todasRestriccionesSonMenorIgual) {
+                    mostrarAlerta("Error: ", "El Metodo simplex solo soporta restricciones menor igual");
+                    return;
+                }
+                simplex = new MSimplexEstandar(funcionObjetivo, restricciones, terminosIndependientes, tipoRestriccion, maximizar);
+                if (!maximizar) {
+                    simplex.resolver();
+                    MatrizWindow window = new MatrizWindow(simplex);
+                    window.mostrar();
+                    return;
+                }
+            } else if (metodo.equals("GranM")) {
+                simplex = new MGranMRefactorizada(funcionObjetivo, restricciones, terminosIndependientes, tipoRestriccion, maximizar);
+            } else if (metodo.equals("Dos Faces")) {
+                simplex = new MDosFasesRefactorizada(funcionObjetivo, restricciones, terminosIndependientes, tipoRestriccion, maximizar);
             }
-            simplex.resolverMSimplex();
+
+
+            simplex.resolver();
 
             // Mostrar ventana con el proceso completo del método Simplex
             MatrizWindow window = new MatrizWindow(simplex);
             window.mostrar();
-            
+
 
         } catch (NumberFormatException e) {
             // Capturar errores de formato en los campos numéricos
